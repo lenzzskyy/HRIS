@@ -1,0 +1,187 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PayrollStatus {
+  DRAFT
+  PROCESSED
+  PAID
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT
+}
+
+model User {
+  id                 String        @id @default(cuid())
+  email              String        @unique
+  passwordHash       String
+  roleId             String
+  employeeId         String?       @unique
+  failedLoginAttempts Int          @default(0)
+  lockedUntil        DateTime?
+  lastLoginAt        DateTime?
+  isActive           Boolean       @default(true)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  role               Role          @relation(fields: [roleId], references: [id])
+  employee           Employee?
+  sessions           Session[]
+  activityLogs       ActivityLog[]
+  approvedLeaves     LeaveRequest[] @relation("LeaveApprover")
+}
+
+model Employee {
+  id                 String        @id @default(cuid())
+  employeeCode       String        @unique
+  fullName           String
+  email              String        @unique
+  phoneNumber        String?
+  departmentId       String
+  title              String
+  salary             Decimal       @db.Decimal(14, 2)
+  hireDate           DateTime      @default(now())
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  department         Department    @relation(fields: [departmentId], references: [id])
+  user               User?
+  attendances        Attendance[]
+  payrolls           Payroll[]
+  leaveRequests      LeaveRequest[]
+}
+
+model Department {
+  id                 String        @id @default(cuid())
+  name               String        @unique
+  description        String?
+  createdAt          DateTime      @default(now())
+
+  employees          Employee[]
+}
+
+model Role {
+  id                 String           @id @default(cuid())
+  name               String           @unique
+  description        String?
+  createdAt          DateTime         @default(now())
+
+  users              User[]
+  rolePermissions    RolePermission[]
+}
+
+model Permission {
+  id                 String           @id @default(cuid())
+  code               String           @unique
+  name               String
+  module             String
+  createdAt          DateTime         @default(now())
+
+  rolePermissions    RolePermission[]
+}
+
+model RolePermission {
+  roleId             String
+  permissionId       String
+
+  role               Role       @relation(fields: [roleId], references: [id])
+  permission         Permission @relation(fields: [permissionId], references: [id])
+
+  @@id([roleId, permissionId])
+}
+
+model Attendance {
+  id                 String           @id @default(cuid())
+  employeeId         String
+  checkInAt          DateTime
+  checkOutAt         DateTime?
+  status             AttendanceStatus
+  notes              String?
+  createdAt          DateTime         @default(now())
+
+  employee           Employee         @relation(fields: [employeeId], references: [id])
+}
+
+model Payroll {
+  id                 String         @id @default(cuid())
+  employeeId         String
+  periodStart        DateTime
+  periodEnd          DateTime
+  baseSalary         Decimal        @db.Decimal(14, 2)
+  bonus              Decimal        @db.Decimal(14, 2)
+  deduction          Decimal        @db.Decimal(14, 2)
+  netSalary          Decimal        @db.Decimal(14, 2)
+  status             PayrollStatus  @default(DRAFT)
+  processedAt        DateTime?
+  createdAt          DateTime       @default(now())
+
+  employee           Employee       @relation(fields: [employeeId], references: [id])
+}
+
+model LeaveRequest {
+  id                 String       @id @default(cuid())
+  employeeId         String
+  startDate          DateTime
+  endDate            DateTime
+  reason             String
+  status             LeaveStatus  @default(PENDING)
+  approvedById       String?
+  approvedAt         DateTime?
+  createdAt          DateTime     @default(now())
+
+  employee           Employee     @relation(fields: [employeeId], references: [id])
+  approvedBy         User?        @relation("LeaveApprover", fields: [approvedById], references: [id])
+}
+
+model ActivityLog {
+  id                 String      @id @default(cuid())
+  userId             String
+  action             String
+  module             String
+  description        String
+  metadata           Json
+  ipAddress          String
+  userAgent          String
+  createdAt          DateTime    @default(now())
+
+  user               User        @relation(fields: [userId], references: [id])
+
+  @@index([module, createdAt])
+  @@index([userId, createdAt])
+}
+
+model Session {
+  id                 String      @id @default(cuid())
+  userId             String
+  refreshToken       String      @unique
+  ipAddress          String
+  userAgent          String
+  expiresAt          DateTime
+  revokedAt          DateTime?
+  createdAt          DateTime    @default(now())
+
+  user               User        @relation(fields: [userId], references: [id])
+}
+
+model CompanySetting {
+  id                 String      @id
+  companyName        String
+  payrollCutoffDay   Int         @default(25)
+  timezone           String      @default("Asia/Jakarta")
+  hrPolicyJson       Json?
+  updatedAt          DateTime    @updatedAt
+}

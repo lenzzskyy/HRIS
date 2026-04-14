@@ -1,0 +1,7 @@
+body { font-family: Arial, sans-serif; margin: 0; background: #f6f7fb; }
+.container { max-width: 980px; margin: 32px auto; background: white; padding: 24px; border-radius: 12px; }
+.card { display: grid; gap: 10px; max-width: 360px; }
+.card-row { display: flex; gap: 16px; }
+input, button { padding: 10px; border: 1px solid #ccc; border-radius: 8px; }
+table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+th, td { border-bottom: 1px solid #eee; padding: 10px; text-align: left; }
